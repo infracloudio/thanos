@@ -19,7 +19,6 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/tags"
 	"github.com/oklog/run"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
@@ -211,7 +210,7 @@ func registerRule(app *extkingpin.App) {
 			return errors.Wrap(err, "error while parsing config for request logging")
 		}
 
-		tagOpts, grpcLogOpts, err := logging.ParsegRPCOptions(*reqLogDecision, reqLogConfig)
+		grpcLogOpts, err := logging.ParsegRPCOptions(*reqLogDecision, reqLogConfig)
 		if err != nil {
 			return errors.Wrap(err, "error while parsing config for request logging")
 		}
@@ -226,7 +225,6 @@ func registerRule(app *extkingpin.App) {
 			getFlagsMap(cmd.Flags()),
 			httpLogOpts,
 			grpcLogOpts,
-			tagOpts,
 			tsdbOpts,
 			agentOpts,
 		)
@@ -290,7 +288,7 @@ func runRule(
 	flagsMap map[string]string,
 	httpLogOpts []logging.Option,
 	grpcLogOpts []grpc_logging.Option,
-	tagOpts []tags.Option,
+	// tagOpts []tags.Option,
 	tsdbOpts *tsdb.Options,
 	agentOpts *agent.Options,
 ) error {
@@ -643,7 +641,8 @@ func runRule(
 	options = append(options, grpcserver.WithServer(
 		info.RegisterInfoServer(info.NewInfoServer(component.Rule.String(), infoOptions...)),
 	))
-	s := grpcserver.New(logger, reg, tracer, grpcLogOpts, tagOpts, comp, grpcProbe, options...)
+	//s := grpcserver.New(logger, reg, tracer, grpcLogOpts, tagOpts, comp, grpcProbe, options...)
+	s := grpcserver.New(logger, reg, tracer, grpcLogOpts, comp, grpcProbe, options...)
 
 	g.Add(func() error {
 		statusProber.Ready()
