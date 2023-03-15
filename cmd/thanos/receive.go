@@ -76,6 +76,13 @@ func registerReceive(app *extkingpin.App) {
 			return errors.Wrap(err, "error while parsing config for request logging")
 		}
 
+		if conf.tsdbEnableExamplersStorage && conf.tsdbMaxExemplars <= 0 {
+			return errors.New("tsdb.enable-examplars-storage flag is enabled, value of tsdb.max-exemplars must be > 0")
+		}
+		if !conf.tsdbEnableExamplersStorage && conf.tsdbMaxExemplars > 0 {
+			return errors.New("Enable tsdb.enable-examplars-storage flag to pass tsdb.max-exemplars ")
+		}
+
 		tsdbOpts := &tsdb.Options{
 			MinBlockDuration:               int64(time.Duration(*conf.tsdbMinBlockDuration) / time.Millisecond),
 			MaxBlockDuration:               int64(time.Duration(*conf.tsdbMaxBlockDuration) / time.Millisecond),
@@ -85,7 +92,7 @@ func registerReceive(app *extkingpin.App) {
 			NoLockfile:                     conf.noLockFile,
 			WALCompression:                 conf.walCompression,
 			MaxExemplars:                   conf.tsdbMaxExemplars,
-			EnableExemplarStorage:          true,
+			EnableExemplarStorage:          conf.tsdbEnableExamplersStorage,
 			HeadChunksWriteQueueSize:       int(conf.tsdbWriteQueueSize),
 			EnableMemorySnapshotOnShutdown: conf.tsdbMemorySnapshotOnShutdown,
 			EnableNativeHistograms:         conf.tsdbEnableNativeHistograms,
@@ -781,6 +788,7 @@ type receiveConfig struct {
 	tsdbWriteQueueSize           int64
 	tsdbMemorySnapshotOnShutdown bool
 	tsdbEnableNativeHistograms   bool
+	tsdbEnableExamplersStorage   bool
 
 	walCompression  bool
 	noLockFile      bool
@@ -878,6 +886,8 @@ func (rc *receiveConfig) registerFlag(cmd extkingpin.FlagClause) {
 	cmd.Flag("tsdb.allow-overlapping-blocks", "Allow overlapping blocks, which in turn enables vertical compaction and vertical query merge. Does not do anything, enabled all the time.").Default("false").BoolVar(&rc.tsdbAllowOverlappingBlocks)
 
 	cmd.Flag("tsdb.wal-compression", "Compress the tsdb WAL.").Default("true").BoolVar(&rc.walCompression)
+
+	cmd.Flag("tsdb.enable-examplars-storage", "Enable examplars storage").Default("false").BoolVar(&rc.tsdbEnableExamplersStorage)
 
 	cmd.Flag("tsdb.no-lockfile", "Do not create lockfile in TSDB data directory. In any case, the lockfiles will be deleted on next startup.").Default("false").BoolVar(&rc.noLockFile)
 
