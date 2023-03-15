@@ -14,6 +14,7 @@ We use *breaking :warning:* to mark changes that are not backward compatible (re
 
 - [#6185](https://github.com/thanos-io/thanos/pull/6185) Tracing: tracing in OTLP support configuring service_name.
 - [#6192](https://github.com/thanos-io/thanos/pull/6192) Store: add flag `bucket-web-label` to select the label to use as timeline title in web UI
+- [#6216](https://github.com/thanos-io/thanos/pull/6216) Receiver: add flag `tsdb.enable-examplars-storage` to enable examplers storage
 
 ### Fixed
 
