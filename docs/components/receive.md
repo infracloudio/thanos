@@ -221,7 +221,7 @@ Flags:
                                  from other components.
       --grpc-grace-period=2m     Time to wait after an interrupt received for
                                  GRPC Server.
-      --grpc-server-max-connection-age=0s
+      --grpc-server-max-connection-age=60m
                                  The grpc server max connection age. This
                                  controls how often to re-establish connections
                                  and redo TLS handshakes.
@@ -396,6 +396,14 @@ Flags:
                                  refer to the Tenant lifecycle management
                                  section in the Receive documentation:
                                  https://thanos.io/tip/components/receive.md/#tenant-lifecycle-management
+      --tsdb.too-far-in-future.time-window=0s
+                                 [EXPERIMENTAL] Configures the allowed time
+                                 window for ingesting samples too far in the
+                                 future. Disabled (0s) by defaultPlease note
+                                 enable this flag will reject samples in the
+                                 future of receive local NTP time + configured
+                                 duration due to clock skew in remote write
+                                 clients.
       --tsdb.wal-compression     Compress the tsdb WAL.
       --version                  Show application version.
 

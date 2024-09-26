@@ -58,7 +58,7 @@ func registerReceive(app *extkingpin.App) {
 	conf := &receiveConfig{}
 	conf.registerFlag(cmd)
 
-	cmd.Setup(func(g *run.Group, logger log.Logger, reg *prometheus.Registry, tracer opentracing.Tracer, _ <-chan struct{}, _ bool) error {
+	cmd.Setup(func(g *run.Group, logger log.Logger, reg *prometheus.Registry, tracer opentracing.Tracer, _ <-chan struct{}, debugLogging bool) error {
 		lset, err := parseFlagLabels(conf.labelStrs)
 		if err != nil {
 			return errors.Wrap(err, "parse labels")
@@ -85,7 +85,7 @@ func registerReceive(app *extkingpin.App) {
 			NoLockfile:                     conf.noLockFile,
 			WALCompression:                 conf.walCompression,
 			MaxExemplars:                   conf.tsdbMaxExemplars,
-			EnableExemplarStorage:          true,
+			EnableExemplarStorage:          conf.tsdbMaxExemplars > 0,
 			HeadChunksWriteQueueSize:       int(conf.tsdbWriteQueueSize),
 			EnableMemorySnapshotOnShutdown: conf.tsdbMemorySnapshotOnShutdown,
 			EnableNativeHistograms:         conf.tsdbEnableNativeHistograms,
@@ -97,6 +97,7 @@ func registerReceive(app *extkingpin.App) {
 		return runReceive(
 			g,
 			logger,
+			debugLogging,
 			reg,
 			tracer,
 			grpcLogOpts, tagOpts,
@@ -113,6 +114,7 @@ func registerReceive(app *extkingpin.App) {
 func runReceive(
 	g *run.Group,
 	logger log.Logger,
+	debugLogging bool,
 	reg *prometheus.Registry,
 	tracer opentracing.Tracer,
 	grpcLogOpts []grpc_logging.Option,
@@ -207,7 +209,10 @@ func runReceive(
 		conf.allowOutOfOrderUpload,
 		hashFunc,
 	)
-	writer := receive.NewWriter(log.With(logger, "component", "receive-writer"), dbs, conf.writerInterning)
+	writer := receive.NewWriter(log.With(logger, "component", "receive-writer"), dbs, &receive.WriterOptions{
+		Intern:                   conf.writerInterning,
+		TooFarInFutureTimeWindow: int64(time.Duration(*conf.tsdbTooFarInFutureTimeWindow)),
+	})
 
 	var limitsConfig *receive.RootLimitsConfig
 	if conf.writeLimitsConfig != nil {
@@ -305,6 +310,11 @@ func runReceive(
 			return errors.Wrap(err, "setup gRPC server")
 		}
 
+		options := []store.ProxyStoreOption{}
+		if debugLogging {
+			options = append(options, store.WithProxyStoreDebugLogging())
+		}
+
 		proxy := store.NewProxyStore(
 			logger,
 			reg,
@@ -313,6 +323,7 @@ func runReceive(
 			labels.Labels{},
 			0,
 			store.LazyRetrieval,
+			options...,
 		)
 		mts := store.NewLimitedStoreServer(store.NewInstrumentedStoreServer(reg, proxy), reg, conf.storeRateLimits)
 		rw := store.ReadWriteTSDBStore{
@@ -774,6 +785,7 @@ type receiveConfig struct {
 
 	tsdbMinBlockDuration         *model.Duration
 	tsdbMaxBlockDuration         *model.Duration
+	tsdbTooFarInFutureTimeWindow *model.Duration
 	tsdbOutOfOrderTimeWindow     *model.Duration
 	tsdbOutOfOrderCapMax         int64
 	tsdbAllowOverlappingBlocks   bool
@@ -865,6 +877,11 @@ func (rc *receiveConfig) registerFlag(cmd extkingpin.FlagClause) {
 	rc.tsdbMinBlockDuration = extkingpin.ModelDuration(cmd.Flag("tsdb.min-block-duration", "Min duration for local TSDB blocks").Default("2h").Hidden())
 
 	rc.tsdbMaxBlockDuration = extkingpin.ModelDuration(cmd.Flag("tsdb.max-block-duration", "Max duration for local TSDB blocks").Default("2h").Hidden())
+
+	rc.tsdbTooFarInFutureTimeWindow = extkingpin.ModelDuration(cmd.Flag("tsdb.too-far-in-future.time-window",
+		"[EXPERIMENTAL] Configures the allowed time window for ingesting samples too far in the future. Disabled (0s) by default"+
+			"Please note enable this flag will reject samples in the future of receive local NTP time + configured duration due to clock skew in remote write clients.",
+	).Default("0s"))
 
 	rc.tsdbOutOfOrderTimeWindow = extkingpin.ModelDuration(cmd.Flag("tsdb.out-of-order.time-window",
 		"[EXPERIMENTAL] Configures the allowed time window for ingestion of out-of-order samples. Disabled (0s) by default"+

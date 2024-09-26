@@ -317,7 +317,7 @@ Flags:
                                  to other clients. Must be one of: snappy, none
       --grpc-grace-period=2m     Time to wait after an interrupt received for
                                  GRPC Server.
-      --grpc-server-max-connection-age=0s
+      --grpc-server-max-connection-age=60m
                                  The grpc server max connection age. This
                                  controls how often to re-establish connections
                                  and redo TLS handshakes.
@@ -397,7 +397,7 @@ Flags:
                                  no partial_response param is specified.
                                  --no-query.partial-response for disabling.
       --query.promql-engine=prometheus
-                                 PromQL engine to use.
+                                 Default PromQL engine to use.
       --query.replica-label=QUERY.REPLICA-LABEL ...
                                  Labels to treat as a replica indicator along
                                  which data is deduplicated. Still you will
